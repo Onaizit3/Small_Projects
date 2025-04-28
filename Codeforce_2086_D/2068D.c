@@ -9,16 +9,18 @@
 #include <string.h>
 
 //l'array con le quantita' di lettere
-int array[26];
+int array[26]; //array con le quantita' di lettere
 int n = 0; //numero di lettere
-int n_fract = 0;
+int n_fract = 0; //numero di lettere diviso 2 approssimato per difetto
 int max_index = 0; //indice dell'array se non avesse zeri
 const long long MOD = 998244353;
+int *factorial; //una puntatore ad un array che tiene in memoria i fattoriali
 
 //index_array[i] l'array con booleani che indica se l'elemento i-esimo e' stato posto nel subarray di destra
 //dx_int e' la somma attuale delle lettere usate nel primo subarray , serve per stoppare anticipatamente la coda
 //sx_int e' la somma attuale delle lettere usate nel secondo subarray, serve per stoppare anticipatamente la coda
 
+//array di test
 int test_array_1[26] = {2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // deve risultare 4
 int test_array_2[26] = {3, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0}; //deve risultare 960
 int test_array_3[26] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //deve risultare 0
@@ -107,6 +109,22 @@ long long modInverse(long long a, long long m) {
     return result;
 }
 
+void calculateFactorial() {
+    // Allocate memory for the factorial array
+    factorial = (int *)malloc((n + 2) * sizeof(long long));
+    if (!factorial) {
+        printf("Memory allocation failed\n");
+        return;
+    }
+    
+    // Calculate factorial values and store them in the array
+    factorial[0] = 1;
+    for (int i = 1; i <= n; i++) {
+        // Use long long for intermediate calculation to prevent overflow
+        factorial[i] = (1LL * factorial[i-1] * i) % MOD;
+    }
+}
+
 // Calculate the multinomial coefficient modulo MOD
 long long calculateCombinationsModulo(int* arr) {
     
@@ -114,17 +132,6 @@ long long calculateCombinationsModulo(int* arr) {
     int totalLength = 0;
     for (int i = 0; i < 26; i++) {
         totalLength += arr[i];
-    }
-    
-    // Calculate factorial modulo MOD
-    long long* factorial = (long long*)malloc((totalLength + 1) * sizeof(long long));
-    if (!factorial) {
-        return -1; // Memory allocation failure
-    }
-    
-    factorial[0] = 1;
-    for (int i = 1; i <= totalLength; i++) {
-        factorial[i] = (factorial[i-1] * i) % MOD;
     }
     
     // Calculate multinomial coefficient
@@ -135,7 +142,6 @@ long long calculateCombinationsModulo(int* arr) {
         }
     }
     
-    free(factorial);
     return result;
 }
 
@@ -230,7 +236,7 @@ long long processArray_for_n_odd(int* index_array, int index, int dx_int, int sx
         return result_1;
     }
     if(array[index] == 0){ return 0;}
-    if(index > 25){return 0;} //todo sostituire n con 25
+    if(index > 25){return 0;} 
 
     index_array[index] = 1; // Indica che l'elemento i-esimo e' stato usato
     long long right_Result = processArray_for_n_odd( index_array, index + 1, dx_int + array[index], sx_int) % MOD; //ramo destro
@@ -252,11 +258,11 @@ int main() {
     getArray();
     sortArrayDescending();
     getMaxIndex();
-
     // Calculate the total number of letters
     for (int i = 0; i < 26; i++) {
         n += array[i];
     }
+    calculateFactorial();
 
     printf("n Vale:  %d\n", n);
     n_fract = n / 2;
