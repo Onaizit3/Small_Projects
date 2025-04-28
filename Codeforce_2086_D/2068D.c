@@ -1,295 +1,247 @@
-
-// Problem in https://codeforces.com/problemset/problem/2086/D
-// Compiler: GCC 14.0
-
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <string.h>
+#include <stdbool.h>
+#include <time.h>
 
-//array with letter quantities
-int array[26]; //array with letter quantities
-int n = 0; //number of letters
-int n_fract = 0; //number of letters divided by 2 rounded down
-int max_index = 0; //array index if it had no zeros
-const long long MOD = 998244353;
-int *factorial; //a pointer to an array that stores factorials in memory
+#define ALPHABET_SIZE 26
+#define TEST_ID        5  // choose which test array to load (1..5)
 
-//index_array[i] array with booleans indicating if the i-th element has been placed in the right subarray
-//dx_int is the current sum of letters used in the first subarray, used to stop the branch early
-//sx_int is the current sum of letters used in the second subarray, used to stop the branch early
+typedef long long ll;
+static const ll MOD = 998244353;
 
-//test arrays
-int test_array_1[26] = {2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // should result in 4
-int test_array_2[26] = {3, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0}; //should result in 960
-int test_array_3[26] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //should result in 0
-int test_array_4[26] = {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //should result in 1
-int test_array_5[26] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 233527, 233827}; //should result in 789493841
+// --- global variables ---
+static int letterCounts[ALPHABET_SIZE];  // how many times each letter appears
+static int maxIndex;                     // highest index with count > 0
+static int totalLetters;                 // sum of all letterCounts[]
+static int halfLetters;                  // floor(totalLetters / 2)
+static ll *factorial;                    // factorial[i] = i! % MOD
 
+// --- test arrays (expected results in comments) ---
+static const int testArray1[ALPHABET_SIZE] = {
+    2,1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+}; // should result in 4
 
-int getArray(){
-    memcpy(array, test_array_5, sizeof(array));
-    return 0;
-}
+static const int testArray2[ALPHABET_SIZE] = {
+    3,1,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,0,0,0,0,0,0,1,0
+}; // should result in 960
 
-int getMaxIndex(){
-    for (int i = 1; i < 26; i++) {
-        if (array[i] == 0) {
-            return 0;
-        }else{
-            max_index = i;
-        }
+static const int testArray3[ALPHABET_SIZE] = {
+    0,0,0,0,0,0,0,0,0,0,0,0,1,0,3,0,0,0,0,0,0,0,0,0,0,0
+}; // should result in 0
+
+static const int testArray4[ALPHABET_SIZE] = {
+    1,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+}; // should result in 1
+
+static const int testArray5[ALPHABET_SIZE] = {
+    1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,233527,233827
+}; // should result in 789493841
+
+// --- function prototypes ---
+void    loadTestData(void);
+void    sortDescending(int *arr, int size);
+int     findMaxIndex(const int *arr, int size);
+ll      modPow(ll base, ll exp);
+ll      modInverse(ll a);
+void    computeFactorials(void);
+ll      computeMultinomial(const int *arr);
+ll      computeSplitWays(const bool selected[]);
+ll      countEven(int idx, int sumA, int sumB, bool selected[]);
+ll      countOdd (int idx, int sumA, int sumB, bool selected[]);
+
+int main(void) {
+    clock_t start = clock();
+
+    loadTestData();                                   // load chosen test data
+    sortDescending(letterCounts, ALPHABET_SIZE);      // sort counts descending
+    maxIndex     = findMaxIndex(letterCounts, ALPHABET_SIZE);
+
+    // compute totalLetters and prepare factorial[]
+    totalLetters = 0;
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        totalLetters += letterCounts[i];
     }
-}
-
-
-//------------------- Sort Descending -------------------
-
-// Struct to store the count and original index
-typedef struct {
-    int count;
-    int index;
-} CountIndex;
-
-// Comparison function for qsort (descending order)
-int compareDescending(const void *a, const void *b) {
-    CountIndex *countA = (CountIndex *)a;
-    CountIndex *countB = (CountIndex *)b;
-    
-    // Sort in descending order
-    return countB->count - countA->count;
-}
-
-// Function to sort array in descending order while preserving letter-to-count mapping
-void sortArrayDescending() {
-    CountIndex temp[26];
-    int sorted_array[26];
-    int sorted_indices[26];
-    
-    // Create temporary array with count and index
-    for (int i = 0; i < 26; i++) {
-        temp[i].count = array[i];
-        temp[i].index = i;
-    }
-    
-    // Sort the temporary array
-    qsort(temp, 26, sizeof(CountIndex), compareDescending);
-    
-    // Extract sorted array and indices
-    for (int i = 0; i < 26; i++) {
-        sorted_array[i] = temp[i].count;
-        sorted_indices[i] = temp[i].index;
-    }
-    
-    // Copy the sorted values back to the original array
-    for (int i = 0; i < 26; i++) {
-        array[i] = sorted_array[i];
-    }
-}
-
-
-//------------------- Calculate Combination -------------------
-
-
-// Calculate modular inverse of a number using Fermat's little theorem
-long long modInverse(long long a, long long m) {
-    long long result = 1;
-    long long power = m - 2;
-    a = a % m;
-    
-    while (power > 0) {
-        if (power % 2 == 1) {
-            result = (result * a) % m;
-        }
-        a = (a * a) % m;
-        power /= 2;
-    }
-    
-    return result;
-}
-
-void calculateFactorial() {
-    // Allocate memory for the factorial array
-    factorial = (int *)malloc((n + 2) * sizeof(long long));
+    factorial = malloc((totalLetters + 1) * sizeof(ll));
     if (!factorial) {
-        printf("Memory allocation failed\n");
-        return;
+        fprintf(stderr, "Memory allocation failed\n");
+        return EXIT_FAILURE;
     }
-    
-    // Calculate factorial values and store them in the array
-    factorial[0] = 1;
-    for (int i = 1; i <= n; i++) {
-        // Use long long for intermediate calculation to prevent overflow
-        factorial[i] = (1LL * factorial[i-1] * i) % MOD;
-    }
-}
+    computeFactorials();
 
-// Calculate the multinomial coefficient modulo MOD
-long long calculateCombinationsModulo(int* arr) {
-    
-    // Calculate total length
-    int totalLength = 0;
-    for (int i = 0; i < 26; i++) {
-        totalLength += arr[i];
-    }
-    
-    // Calculate multinomial coefficient
-    long long result = factorial[totalLength];
-    for (int i = 0; i < 26; i++) {
-        if (arr[i] > 0) {
-            result = (result * modInverse(factorial[arr[i]], MOD)) % MOD;
-        }
-    }
-    
-    return result;
-}
+    halfLetters = totalLetters / 2;
 
+    // selection mask for group A (true) / B (false)
+    bool selected[ALPHABET_SIZE] = { false };
+    selected[0] = true;  // fix the first letter in A to avoid symmetric duplicates
 
-
-long long calculateCombinations(int* index_array){
-    int filtered_array_dx[26] = {0};
-    int filtered_array_sx[26] = {0};     
-    for (int i = 0; i < 26; i++) {
-        if (index_array[i] == 1) {
-            filtered_array_dx[i] = array[i];
-        }else{
-            filtered_array_sx[i] = array[i];
-        }
-    }
-    long long combination = calculateCombinationsModulo(filtered_array_dx)* calculateCombinationsModulo(filtered_array_sx) % MOD;
-    return combination;
-}
-
-
-//------------------- Compute Cases -------------------
-
-
-long long processArray_for_n_even(int* index_array, int index, int dx_int, int sx_int) {
-
-    if(dx_int > n_fract){ 
-        return 0;
-    } 
-    if(sx_int > n_fract){ 
-        return 0;
-    }
-
-    if(dx_int == n_fract){
-        return calculateCombinations(index_array) ;}
-    if(sx_int == n_fract){
-        //@todo change structure to make it more understandable
-        for (int i = index; i <= max_index; i++) {
-            index_array[i] = 1;
-        }
-        long long result_1 =  calculateCombinations(index_array) ;
-        for (int i = index; i <= max_index; i++) {
-            index_array[i] = 0;
-        }
-        return result_1;
-    }
-    if(array[index] == 0){ 
-        return 0;
-    }
-    if(index > 25){
-        return 0;
-    }
-
-    index_array[index] = 1; // Indicates that the i-th element has been used
-    long long right_Result = processArray_for_n_even( index_array, index + 1, dx_int + array[index], sx_int) % MOD; //right branch
-    index_array[index] = 0; // Indicates that the i-th element has not been used
-    long long left_Result = processArray_for_n_even( index_array, index + 1, dx_int, sx_int + array[index] ) % MOD; //left branch
-
-    long long result = (right_Result + left_Result) % MOD;
-
-    return result;
-}
-
-long long processArray_for_n_odd(int* index_array, int index, int dx_int, int sx_int) {
-
-    if(dx_int > n_fract +1){ return 0;} // change the +1 to avoid duplicates
-    if(sx_int > n_fract +1){ return 0;}
-
-    if(dx_int == n_fract +1){ 
-        return calculateCombinations(index_array);
-    }
-    if(sx_int == n_fract +1){
-        for (int i = index; i <= max_index; i++) {
-            index_array[i] = 1;
-        }
-        long long result_1 =  calculateCombinations(index_array) ;
-        for (int i = index; i <= max_index; i++) {
-            index_array[i] = 0;
-        }
-        return result_1;
-    }
-    if(dx_int == n_fract){
-        return calculateCombinations(index_array);
-    }
-    if(sx_int == n_fract){
-        for (int i = index; i <= max_index; i++) {
-            index_array[i] = 1;
-        }
-        long long result_1 =  calculateCombinations(index_array) ;
-        for (int i = index; i <= max_index; i++) {
-            index_array[i] = 0;
-        }
-        return result_1;
-    }
-    if(array[index] == 0){ return 0;}
-    if(index > 25){return 0;} 
-
-    index_array[index] = 1; // Indicates that the i-th element has been used
-    long long right_Result = processArray_for_n_odd( index_array, index + 1, dx_int + array[index], sx_int) % MOD; //right branch
-    index_array[index] = 0; // Indicates that the i-th element has not been used
-    long long left_Result = processArray_for_n_odd( index_array, index + 1, dx_int, sx_int + array[index] ) % MOD; //left branch
-
-    return (right_Result + left_Result) % MOD;
-}
-
-
-//------------------- Main Function -------------------
-
-
-int main() {
-    clock_t start_time = clock();
-
-    //Array Definition
-    
-    getArray();
-    sortArrayDescending();
-    getMaxIndex();
-    // Calculate the total number of letters
-    for (int i = 0; i < 26; i++) {
-        n += array[i];
-    }
-    calculateFactorial();
-
-    printf("n Vale:  %d\n", n);
-    n_fract = n / 2;
-    printf("n_frac Vale:  %d\n", n_fract);
-
-    int index_array[26] = {0};
-    index_array[0] = 1; // To avoid duplicates, all 'a's are placed in the same subarray
-    long long res;
-    if (n % 2 == 0) {
-        // n is even
-        printf("n is even\n"); 
-        res = 2 * processArray_for_n_even(index_array, 1, array[0], 0) % MOD; ;
+    ll result;
+    if (totalLetters % 2 == 0) {
+        // even totalLetters: both halves of length halfLetters
+        result = (2 * countEven(1, letterCounts[0], 0, selected)) % MOD;
     } else {
-        // n is odd
-        printf("n is odd\n");
-        res = processArray_for_n_odd(index_array, 1, array[0], 0);
+        // odd totalLetters: halves of length floor(n/2) and ceil(n/2)
+        result = countOdd(1, letterCounts[0], 0, selected);
     }
-    printf("Casi: %lld\n", res);
-      
-    // Calculate and print execution time
-    clock_t end_time = clock();
-    double execution_time = (double)(end_time - start_time) / CLOCKS_PER_SEC;
-    printf("Execution time: %.6f seconds\n", execution_time);
+
+    printf("%lld\n", result);
+
+    clock_t end = clock();
+    fprintf(stderr, "CPU time: %.6f s\n",
+            (double)(end - start) / CLOCKS_PER_SEC);
+
+    free(factorial);
+    return EXIT_SUCCESS;
+}
+
+// ------------------------------------------------------------
+// Load one of the predefined test arrays into letterCounts[].
+// Replace with reading from stdin if needed.
+void loadTestData(void) {
+    switch (TEST_ID) {
+        case 1:
+            memcpy(letterCounts, testArray1, sizeof testArray1);
+            break;
+        case 2:
+            memcpy(letterCounts, testArray2, sizeof testArray2);
+            break;
+        case 3:
+            memcpy(letterCounts, testArray3, sizeof testArray3);
+            break;
+        case 4:
+            memcpy(letterCounts, testArray4, sizeof testArray4);
+            break;
+        case 5:
+            memcpy(letterCounts, testArray5, sizeof testArray5);
+            break;
+        default:
+            fprintf(stderr, "Invalid TEST_ID %d\n", TEST_ID);
+            exit(EXIT_FAILURE);
+    }
+}
+
+// compare function for qsort (descending order)
+int compareDesc(const void *a, const void *b) {
+    return (*(int*)b - *(int*)a);
+}
+
+// sort arr[0..size) in-place in descending order
+void sortDescending(int *arr, int size) {
+    qsort(arr, size, sizeof(int), compareDesc);
+}
+
+// return the highest index i where arr[i] > 0
+int findMaxIndex(const int *arr, int size) {
+    for (int i = size - 1; i >= 0; i--) {
+        if (arr[i] > 0) return i;
+    }
     return 0;
 }
 
+// fast power mod: base^exp % MOD
+ll modPow(ll base, ll exp) {
+    ll res = 1;
+    base %= MOD;
+    while (exp > 0) {
+        if (exp & 1) res = (res * base) % MOD;
+        base = (base * base) % MOD;
+        exp >>= 1;
+    }
+    return res;
+}
 
+// modular inverse via Fermat's little theorem
+ll modInverse(ll a) {
+    return modPow(a, MOD - 2);
+}
 
+// fill factorial[i] = i! % MOD for i = 0..totalLetters
+void computeFactorials(void) {
+    factorial[0] = 1;
+    for (int i = 1; i <= totalLetters; i++) {
+        factorial[i] = (factorial[i - 1] * i) % MOD;
+    }
+}
 
+// multinomial coefficient: (sum arr)! / product(arr[i]!) mod MOD
+ll computeMultinomial(const int *arr) {
+    int sum = 0;
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        sum += arr[i];
+    }
+    ll res = factorial[sum];
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        if (arr[i] > 1) {
+            res = (res * modInverse(factorial[arr[i]])) % MOD;
+        }
+    }
+    return res;
+}
 
+// given selection mask, compute (#permutations in A) * (#permutations in B) % MOD
+ll computeSplitWays(const bool selected[]) {
+    int groupA[ALPHABET_SIZE] = {0}, groupB[ALPHABET_SIZE] = {0};
+    for (int i = 0; i < ALPHABET_SIZE; i++) {
+        if (selected[i]) groupA[i] = letterCounts[i];
+        else             groupB[i] = letterCounts[i];
+    }
+    return (computeMultinomial(groupA) * computeMultinomial(groupB)) % MOD;
+}
+
+// recursive counting when totalLetters is even
+ll countEven(int idx, int sumA, int sumB, bool selected[]) {
+    if (sumA > halfLetters || sumB > halfLetters) return 0;
+
+    if (sumA == halfLetters) {
+        return computeSplitWays(selected);
+    }
+    if (sumB == halfLetters) {
+        for (int i = idx; i <= maxIndex; i++) selected[i] = true;
+        ll res = computeSplitWays(selected);
+        for (int i = idx; i <= maxIndex; i++) selected[i] = false;
+        return res;
+    }
+    if (idx > maxIndex) return 0;
+
+    selected[idx] = true;
+    ll res = countEven(idx + 1, sumA + letterCounts[idx], sumB, selected);
+    selected[idx] = false;
+
+    res = (res + countEven(idx + 1, sumA, sumB + letterCounts[idx], selected)) % MOD;
+    return res;
+}
+
+// recursive counting when totalLetters is odd
+ll countOdd(int idx, int sumA, int sumB, bool selected[]) {
+    int low  = halfLetters;      // floor(n/2)
+    int high = halfLetters + 1;  // ceil(n/2)
+
+    if (sumA > high || sumB > high) return 0;
+
+    if (sumA == high) {
+        return computeSplitWays(selected);
+    }
+    if (sumB == high) {
+        for (int i = idx; i <= maxIndex; i++) selected[i] = true;
+        ll res = computeSplitWays(selected);
+        for (int i = idx; i <= maxIndex; i++) selected[i] = false;
+        return res;
+    }
+    if (sumA == low) {
+        return computeSplitWays(selected);
+    }
+    if (sumB == low) {
+        for (int i = idx; i <= maxIndex; i++) selected[i] = true;
+        ll res = computeSplitWays(selected);
+        for (int i = idx; i <= maxIndex; i++) selected[i] = false;
+        return res;
+    }
+    if (idx > maxIndex) return 0;
+
+    selected[idx] = true;
+    ll res = countOdd(idx + 1, sumA + letterCounts[idx], sumB, selected);
+    selected[idx] = false;
+
+    res = (res + countOdd(idx + 1, sumA, sumB + letterCounts[idx], selected)) % MOD;
+    return res;
+}
