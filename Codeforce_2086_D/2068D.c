@@ -8,24 +8,24 @@
 #include <time.h>
 #include <string.h>
 
-//l'array con le quantita' di lettere
-int array[26]; //array con le quantita' di lettere
-int n = 0; //numero di lettere
-int n_fract = 0; //numero di lettere diviso 2 approssimato per difetto
-int max_index = 0; //indice dell'array se non avesse zeri
+//array with letter quantities
+int array[26]; //array with letter quantities
+int n = 0; //number of letters
+int n_fract = 0; //number of letters divided by 2 rounded down
+int max_index = 0; //array index if it had no zeros
 const long long MOD = 998244353;
-int *factorial; //una puntatore ad un array che tiene in memoria i fattoriali
+int *factorial; //a pointer to an array that stores factorials in memory
 
-//index_array[i] l'array con booleani che indica se l'elemento i-esimo e' stato posto nel subarray di destra
-//dx_int e' la somma attuale delle lettere usate nel primo subarray , serve per stoppare anticipatamente la coda
-//sx_int e' la somma attuale delle lettere usate nel secondo subarray, serve per stoppare anticipatamente la coda
+//index_array[i] array with booleans indicating if the i-th element has been placed in the right subarray
+//dx_int is the current sum of letters used in the first subarray, used to stop the branch early
+//sx_int is the current sum of letters used in the second subarray, used to stop the branch early
 
-//array di test
-int test_array_1[26] = {2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // deve risultare 4
-int test_array_2[26] = {3, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0}; //deve risultare 960
-int test_array_3[26] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //deve risultare 0
-int test_array_4[26] = {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //deve risultare 1
-int test_array_5[26] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 233527, 233827}; //deve risultare 789493841
+//test arrays
+int test_array_1[26] = {2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; // should result in 4
+int test_array_2[26] = {3, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0}; //should result in 960
+int test_array_3[26] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //should result in 0
+int test_array_4[26] = {1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; //should result in 1
+int test_array_5[26] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 233527, 233827}; //should result in 789493841
 
 
 int getArray(){
@@ -177,7 +177,7 @@ long long processArray_for_n_even(int* index_array, int index, int dx_int, int s
     if(dx_int == n_fract){
         return calculateCombinations(index_array) ;}
     if(sx_int == n_fract){
-        //@todo cambiare struttura per rendere piu comprensibile, 
+        //@todo change structure to make it more understandable
         for (int i = index; i <= max_index; i++) {
             index_array[i] = 1;
         }
@@ -194,10 +194,10 @@ long long processArray_for_n_even(int* index_array, int index, int dx_int, int s
         return 0;
     }
 
-    index_array[index] = 1; // Indica che l'elemento i-esimo e' stato usato
-    long long right_Result = processArray_for_n_even( index_array, index + 1, dx_int + array[index], sx_int) % MOD; //ramo destro
-    index_array[index] = 0; // Indica che l'elemento i-esimo non e' stato usato 
-    long long left_Result = processArray_for_n_even( index_array, index + 1, dx_int, sx_int + array[index] ) % MOD; //ramo sinistro
+    index_array[index] = 1; // Indicates that the i-th element has been used
+    long long right_Result = processArray_for_n_even( index_array, index + 1, dx_int + array[index], sx_int) % MOD; //right branch
+    index_array[index] = 0; // Indicates that the i-th element has not been used
+    long long left_Result = processArray_for_n_even( index_array, index + 1, dx_int, sx_int + array[index] ) % MOD; //left branch
 
     long long result = (right_Result + left_Result) % MOD;
 
@@ -206,7 +206,7 @@ long long processArray_for_n_even(int* index_array, int index, int dx_int, int s
 
 long long processArray_for_n_odd(int* index_array, int index, int dx_int, int sx_int) {
 
-    if(dx_int > n_fract +1){ return 0;} // cambiare il +1 per evitare doppioni
+    if(dx_int > n_fract +1){ return 0;} // change the +1 to avoid duplicates
     if(sx_int > n_fract +1){ return 0;}
 
     if(dx_int == n_fract +1){ 
@@ -238,10 +238,10 @@ long long processArray_for_n_odd(int* index_array, int index, int dx_int, int sx
     if(array[index] == 0){ return 0;}
     if(index > 25){return 0;} 
 
-    index_array[index] = 1; // Indica che l'elemento i-esimo e' stato usato
-    long long right_Result = processArray_for_n_odd( index_array, index + 1, dx_int + array[index], sx_int) % MOD; //ramo destro
-    index_array[index] = 0; // Indica che l'elemento i-esimo non e' stato usato
-    long long left_Result = processArray_for_n_odd( index_array, index + 1, dx_int, sx_int + array[index] ) % MOD; //ramo sinistro 
+    index_array[index] = 1; // Indicates that the i-th element has been used
+    long long right_Result = processArray_for_n_odd( index_array, index + 1, dx_int + array[index], sx_int) % MOD; //right branch
+    index_array[index] = 0; // Indicates that the i-th element has not been used
+    long long left_Result = processArray_for_n_odd( index_array, index + 1, dx_int, sx_int + array[index] ) % MOD; //left branch
 
     return (right_Result + left_Result) % MOD;
 }
@@ -253,7 +253,7 @@ long long processArray_for_n_odd(int* index_array, int index, int dx_int, int sx
 int main() {
     clock_t start_time = clock();
 
-    //Definizione Array
+    //Array Definition
     
     getArray();
     sortArrayDescending();
@@ -269,7 +269,7 @@ int main() {
     printf("n_frac Vale:  %d\n", n_fract);
 
     int index_array[26] = {0};
-    index_array[0] = 1; // Per evitare doppioni si impone che le 'a' stiano tutte nello stesso subarray
+    index_array[0] = 1; // To avoid duplicates, all 'a's are placed in the same subarray
     long long res;
     if (n % 2 == 0) {
         // n is even
