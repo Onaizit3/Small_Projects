@@ -1,0 +1,2 @@
+# Codeforces Problem Solution
+It can be easily proven that if no single swap between elements of `array1` and `array2` increases the score, then there is no way to increase the score by performing multiple swaps either.

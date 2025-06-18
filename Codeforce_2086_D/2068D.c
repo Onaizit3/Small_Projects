@@ -1,3 +1,6 @@
+// Problem in https://codeforces.com/problemset/problem/2086/D
+// Compiler: GCC 14.0
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
